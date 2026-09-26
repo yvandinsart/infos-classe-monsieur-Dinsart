@@ -20,6 +20,24 @@ function setStatus(text, cssClass = "") {
   statusBox.className = `status modern-status ${cssClass}`.trim();
 }
 
+function describeError(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || error || "Erreur inconnue");
+  if (code === "42501" || message.toLowerCase().includes("row-level security")) {
+    return "Supabase refuse l’enregistrement (RLS).";
+  }
+  if (message.includes("applicationServerKey") || message.includes("InvalidCharacterError")) {
+    return "Clé VAPID publique invalide.";
+  }
+  if (message.includes("permission") || message.includes("Permission")) {
+    return "Autorisation de notification refusée par Android/Chrome.";
+  }
+  if (message.includes("push service") || message.includes("PushManager") || message.includes("InvalidStateError")) {
+    return `Abonnement push impossible : ${message}`;
+  }
+  return `Activation impossible : ${message}`;
+}
+
 function updateOffline() {
   offline.classList.toggle("show", !navigator.onLine);
 }
@@ -135,7 +153,7 @@ async function refreshState() {
     }
   } catch (error) {
     console.error(error);
-    setStatus("Le service de notifications n’a pas pu démarrer", "error");
+    setStatus(describeError(error), "error");
     notifyBtn.disabled = false;
   }
 }
@@ -184,11 +202,7 @@ notifyBtn.addEventListener("click", () => {
   activateNotifications().catch(error => {
     console.error(error);
     notifyBtn.disabled = false;
-    if (String(error?.message || "").includes("applicationServerKey")) {
-      setStatus("Clé VAPID publique invalide", "error");
-    } else {
-      setStatus("Activation impossible. Vérifiez la configuration et réessayez.", "error");
-    }
+    setStatus(describeError(error), "error");
   });
 });
 
