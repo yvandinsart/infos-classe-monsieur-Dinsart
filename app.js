@@ -76,6 +76,31 @@ async function registerServiceWorker() {
   return registration;
 }
 
+async function syncSubscriptionToSupabase(subscription) {
+  if (!subscription) throw new Error("NO_PUSH_SUBSCRIPTION");
+  if (!supabase) supabase = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+  const json = subscription.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+    throw new Error("INVALID_PUSH_SUBSCRIPTION");
+  }
+
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(json.endpoint));
+  const endpointId = [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, "0")).join("");
+
+  const { error } = await supabase.from("push_subscriptions").upsert({
+    endpoint_id: endpointId,
+    endpoint: json.endpoint,
+    p256dh: json.keys.p256dh,
+    auth: json.keys.auth,
+    user_agent: navigator.userAgent,
+    active: true,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "endpoint_id" });
+
+  if (error) throw error;
+}
+
 async function refreshState() {
   if (!("Notification" in window) || !("PushManager" in window)) {
     setStatus("Notifications non prises en charge sur cet appareil", "warn");
@@ -99,6 +124,8 @@ async function refreshState() {
     const registration = await registerServiceWorker();
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) {
+      setStatus("Synchronisation de l’abonnement…");
+      await syncSubscriptionToSupabase(subscription);
       setStatus("Notifications activées", "ok");
       notifyBtn.textContent = "Notifications activées";
       notifyBtn.disabled = true;
@@ -109,6 +136,7 @@ async function refreshState() {
   } catch (error) {
     console.error(error);
     setStatus("Le service de notifications n’a pas pu démarrer", "error");
+    notifyBtn.disabled = false;
   }
 }
 
@@ -143,27 +171,7 @@ async function activateNotifications() {
     });
   }
 
-  if (!supabase) supabase = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-
-  const json = subscription.toJSON();
-  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-    throw new Error("INVALID_PUSH_SUBSCRIPTION");
-  }
-
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(json.endpoint));
-  const endpointId = [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, "0")).join("");
-
-  const { error } = await supabase.from("push_subscriptions").upsert({
-    endpoint_id: endpointId,
-    endpoint: json.endpoint,
-    p256dh: json.keys.p256dh,
-    auth: json.keys.auth,
-    user_agent: navigator.userAgent,
-    active: true,
-    updated_at: new Date().toISOString()
-  }, { onConflict: "endpoint_id" });
-
-  if (error) throw error;
+  await syncSubscriptionToSupabase(subscription);
 
   setStatus("Notifications activées", "ok");
   notifyBtn.textContent = "Notifications activées";
