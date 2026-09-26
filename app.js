@@ -87,11 +87,26 @@ function urlBase64ToUint8Array(value) {
   return Uint8Array.from([...raw].map(char => char.charCodeAt(0)));
 }
 
+function sameBytes(a, b) {
+  const aa = a ? new Uint8Array(a) : null;
+  const bb = b ? new Uint8Array(b) : null;
+  if (!aa || !bb || aa.length !== bb.length) return false;
+  for (let i = 0; i < aa.length; i++) if (aa[i] !== bb[i]) return false;
+  return true;
+}
+
 async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) throw new Error("NO_SW");
   const registration = await navigator.serviceWorker.register("service-worker.js", { scope: "./" });
   await navigator.serviceWorker.ready;
   return registration;
+}
+
+async function endpointIdFor(subscription) {
+  const endpoint = subscription?.endpoint || subscription?.toJSON?.().endpoint;
+  if (!endpoint) throw new Error("INVALID_PUSH_SUBSCRIPTION");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(endpoint));
+  return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, "0")).join("");
 }
 
 async function syncSubscriptionToSupabase(subscription) {
@@ -103,9 +118,7 @@ async function syncSubscriptionToSupabase(subscription) {
     throw new Error("INVALID_PUSH_SUBSCRIPTION");
   }
 
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(json.endpoint));
-  const endpointId = [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, "0")).join("");
-
+  const endpointId = await endpointIdFor(subscription);
   const { error } = await supabase.from("push_subscriptions").upsert({
     endpoint_id: endpointId,
     endpoint: json.endpoint,
@@ -117,6 +130,40 @@ async function syncSubscriptionToSupabase(subscription) {
   }, { onConflict: "endpoint_id" });
 
   if (error) throw error;
+}
+
+async function deactivateSubscriptionInSupabase(subscription) {
+  if (!subscription) return;
+  if (!supabase) supabase = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  const endpointId = await endpointIdFor(subscription);
+  const { error } = await supabase.from("push_subscriptions")
+    .update({ active: false, updated_at: new Date().toISOString() })
+    .eq("endpoint_id", endpointId);
+  if (error) console.warn("Impossible de désactiver l'ancien abonnement", error);
+}
+
+async function ensureCurrentSubscription(registration) {
+  const expectedKey = urlBase64ToUint8Array(cfg.VAPID_PUBLIC_KEY);
+  let subscription = await registration.pushManager.getSubscription();
+
+  if (subscription) {
+    const currentKey = subscription.options?.applicationServerKey;
+    if (!sameBytes(currentKey, expectedKey)) {
+      setStatus("Mise à jour de l’abonnement aux notifications…");
+      await deactivateSubscriptionInSupabase(subscription);
+      await subscription.unsubscribe();
+      subscription = null;
+    }
+  }
+
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: expectedKey
+    });
+  }
+
+  return subscription;
 }
 
 async function refreshState() {
@@ -140,8 +187,10 @@ async function refreshState() {
 
   try {
     const registration = await registerServiceWorker();
-    const subscription = await registration.pushManager.getSubscription();
-    if (subscription) {
+    let subscription = await registration.pushManager.getSubscription();
+
+    if (subscription && Notification.permission === "granted") {
+      subscription = await ensureCurrentSubscription(registration);
       setStatus("Synchronisation de l’abonnement…");
       await syncSubscriptionToSupabase(subscription);
       setStatus("Notifications activées", "ok");
@@ -180,15 +229,7 @@ async function activateNotifications() {
   }
 
   const registration = await registerServiceWorker();
-  let subscription = await registration.pushManager.getSubscription();
-
-  if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(cfg.VAPID_PUBLIC_KEY)
-    });
-  }
-
+  const subscription = await ensureCurrentSubscription(registration);
   await syncSubscriptionToSupabase(subscription);
 
   setStatus("Notifications activées", "ok");
