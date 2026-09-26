@@ -7,6 +7,13 @@ const installBtn = document.getElementById("installBtn");
 const iosHelpBtn = document.getElementById("iosHelpBtn");
 const iosDialog = document.getElementById("iosDialog");
 const offline = document.getElementById("offline");
+const historyBtn = document.getElementById("historyBtn");
+const notificationHistory = document.getElementById("notificationHistory");
+const historyList = document.getElementById("historyList");
+const closeHistoryBtn = document.getElementById("closeHistoryBtn");
+
+const HISTORY_DB = "infos-classe-history";
+const HISTORY_STORE = "notifications";
 
 let deferredInstallPrompt = null;
 let supabase = null;
@@ -280,5 +287,105 @@ notifyBtn.addEventListener("click", () => {
     setStatus(describeError(error), "error");
   });
 });
+
+function openHistoryDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(HISTORY_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(HISTORY_STORE)) {
+        const store = db.createObjectStore(HISTORY_STORE, { keyPath: "id" });
+        store.createIndex("receivedAt", "receivedAt");
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function readNotificationHistory() {
+  const db = await openHistoryDb();
+  const items = await new Promise((resolve, reject) => {
+    const tx = db.transaction(HISTORY_STORE, "readonly");
+    const request = tx.objectStore(HISTORY_STORE).getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+  db.close();
+  return items.sort((a, b) => (b.receivedAt || 0) - (a.receivedAt || 0));
+}
+
+function formatNotificationDate(timestamp) {
+  if (!timestamp) return "Date inconnue";
+  return new Intl.DateTimeFormat("fr-BE", {
+    dateStyle: "long",
+    timeStyle: "short"
+  }).format(new Date(timestamp));
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function renderHistory() {
+  try {
+    const items = await readNotificationHistory();
+    if (!items.length) {
+      historyList.innerHTML = '<div class="history-empty">Aucune notification reçue sur ce téléphone pour le moment.</div>';
+      return;
+    }
+
+    historyList.innerHTML = items.map(item => `
+      <article class="history-item">
+        <h3 class="history-item-title">${escapeHtml(item.title || "Information")}</h3>
+        <p class="history-item-body">${escapeHtml(item.body || "")}</p>
+        <p class="history-item-date">${escapeHtml(formatNotificationDate(item.receivedAt))}</p>
+      </article>
+    `).join("");
+  } catch (error) {
+    console.error(error);
+    historyList.innerHTML = '<div class="history-empty">Impossible de charger l’historique sur cet appareil.</div>';
+  }
+}
+
+async function openHistory() {
+  notificationHistory.classList.remove("hidden");
+  historyBtn.setAttribute("aria-expanded", "true");
+  await renderHistory();
+  notificationHistory.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeHistory() {
+  notificationHistory.classList.add("hidden");
+  historyBtn.setAttribute("aria-expanded", "false");
+  if (location.hash === "#notifications") history.replaceState(null, "", location.pathname + location.search);
+}
+
+historyBtn.setAttribute("aria-expanded", "false");
+historyBtn.addEventListener("click", () => {
+  if (notificationHistory.classList.contains("hidden")) {
+    openHistory();
+  } else {
+    closeHistory();
+  }
+});
+closeHistoryBtn.addEventListener("click", closeHistory);
+
+window.addEventListener("hashchange", () => {
+  if (location.hash === "#notifications") openHistory();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && !notificationHistory.classList.contains("hidden")) renderHistory();
+});
+
+if (location.hash === "#notifications") {
+  setTimeout(openHistory, 250);
+}
 
 refreshState();
