@@ -59,9 +59,25 @@
           <span aria-hidden="true">🔔</span>
           <span>Activer les notifications</span>
         </button>
+        <button id="historyBtn" class="btn btn-light history-main">
+          <span aria-hidden="true">📬</span>
+          <span>Mes notifications</span>
+        </button>
       </div>
 
       <div id="status" class="status modern-status" role="status" aria-live="polite">Notifications non activées</div>
+
+      <section id="notificationHistory" class="notification-history hidden" aria-labelledby="historyTitle">
+        <div class="history-head">
+          <div>
+            <p class="history-kicker">Historique</p>
+            <h2 id="historyTitle">Mes notifications</h2>
+          </div>
+          <button id="closeHistoryBtn" class="history-close" type="button" aria-label="Fermer l’historique">×</button>
+        </div>
+        <p class="history-note">Les notifications reçues sur ce téléphone restent consultables ici.</p>
+        <div id="historyList" class="history-list" aria-live="polite"></div>
+      </section>
 
       <button id="iosHelpBtn" class="btn-link hidden">Comment installer sur iPhone / iPad ?</button>
 
