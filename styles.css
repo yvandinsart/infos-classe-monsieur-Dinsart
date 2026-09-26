@@ -21,17 +21,14 @@
 .reminder-box strong{display:block;margin:1px 0 5px;color:#173c5d;font-size:16px}
 .reminder-box p{margin:0;color:#526d84;font-size:14px;line-height:1.52}
 .parent-actions{display:grid;gap:10px;margin-top:4px}
-.notify-main,.install-main{width:100%;min-height:58px;border-radius:18px;font-size:17px;box-shadow:0 10px 24px rgba(36,95,168,.12)}
-.notify-main{display:flex;align-items:center;justify-content:center;gap:9px}
+.notify-main,.install-main,.history-main{width:100%;min-height:58px;border-radius:18px;font-size:17px;box-shadow:0 10px 24px rgba(36,95,168,.12)}
+.notify-main,.history-main{display:flex;align-items:center;justify-content:center;gap:9px}
 .modern-status{margin-top:12px;border:1px solid #e0e8ef;background:#f6f8fa;color:#5d7287;font-size:14px;border-radius:14px;padding:12px 13px}
 .privacy-line{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:15px;color:#75889b;font-size:12px;font-weight:700;text-align:center}
 .parent-card .btn-link{display:block;margin:7px auto 0;font-size:13px}
 @media (min-width:600px){.parent-card{padding:22px 26px 26px}.reminder-box{padding:18px 20px}.parent-actions{grid-template-columns:1fr}.hero-modern{padding-inline:18px}}
 
-/* Message de référence : bloc en gras sur sa propre ligne pour éviter un « Le » isolé. */
-.reference-message {
-  margin-top: 0.85rem;
-}
-.reference-message strong {
-  display: block;
-}
+.reference-message{margin-top:.85rem}.reference-message strong{display:block}
+
+/* ===== Historique local des notifications ===== */
+.notification-history{margin-top:16px;padding:17px;border:1px solid #d8e8f7;border-radius:20px;background:#fbfdff}.history-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.history-kicker{margin:0 0 3px;color:var(--blue2);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.history-head h2{margin:0;font-size:22px;color:#173c5d}.history-close{width:38px;height:38px;border:0;border-radius:12px;background:#eef4fa;color:#35526d;font-size:26px;line-height:1}.history-note{margin:8px 0 14px;color:#6a7f93;font-size:13px;line-height:1.45}.history-list{display:grid;gap:10px}.history-empty{padding:18px;border-radius:15px;background:#f1f5f8;color:#6d8193;text-align:center;font-weight:700}.history-item{padding:14px 15px;border:1px solid #dce8f3;border-radius:16px;background:#fff;box-shadow:0 7px 18px rgba(36,95,168,.06)}.history-item-title{margin:0 0 5px;color:#173c5d;font-size:16px;font-weight:900}.history-item-body{margin:0 0 9px;color:#506b82;font-size:14px;line-height:1.5;white-space:pre-wrap}.history-item-date{margin:0;color:#8192a2;font-size:12px;font-weight:700}
