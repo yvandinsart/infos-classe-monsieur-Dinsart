@@ -12,6 +12,7 @@ let deferredInstallPrompt = null;
 let supabase = null;
 
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isAndroid = () => /android/i.test(navigator.userAgent);
 const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
 const configured = () => Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && cfg.VAPID_PUBLIC_KEY);
 
@@ -46,15 +47,28 @@ window.addEventListener("online", updateOffline);
 window.addEventListener("offline", updateOffline);
 updateOffline();
 
-if (isIOS() && !isStandalone()) {
-  iosHelpBtn.classList.remove("hidden");
-  if (!sessionStorage.getItem("ios-install-help-shown")) {
-    setTimeout(() => {
-      if (!iosDialog.open) iosDialog.showModal();
-      sessionStorage.setItem("ios-install-help-shown", "1");
-    }, 650);
+function updateInstallUi() {
+  if (isStandalone()) {
+    installBtn.classList.add("hidden");
+    iosHelpBtn.classList.add("hidden");
+    return;
+  }
+
+  installBtn.classList.remove("hidden");
+
+  if (isIOS()) {
+    installBtn.textContent = "Installer l’application sur iPhone / iPad";
+    iosHelpBtn.classList.remove("hidden");
+  } else if (isAndroid()) {
+    installBtn.textContent = "Installer l’application sur Android";
+    iosHelpBtn.classList.add("hidden");
+  } else {
+    installBtn.textContent = "Installer l’application sur cet appareil";
+    iosHelpBtn.classList.add("hidden");
   }
 }
+
+updateInstallUi();
 
 iosHelpBtn.addEventListener("click", () => {
   if (!iosDialog.open) iosDialog.showModal();
@@ -64,20 +78,40 @@ document.getElementById("closeIosDialog").addEventListener("click", () => iosDia
 window.addEventListener("beforeinstallprompt", event => {
   event.preventDefault();
   deferredInstallPrompt = event;
-  installBtn.classList.remove("hidden");
+  updateInstallUi();
 });
 
 window.addEventListener("appinstalled", () => {
-  installBtn.classList.add("hidden");
   deferredInstallPrompt = null;
+  updateInstallUi();
 });
 
 installBtn.addEventListener("click", async () => {
-  if (!deferredInstallPrompt) return;
-  deferredInstallPrompt.prompt();
-  await deferredInstallPrompt.userChoice;
-  deferredInstallPrompt = null;
-  installBtn.classList.add("hidden");
+  if (isStandalone()) {
+    installBtn.classList.add("hidden");
+    return;
+  }
+
+  if (isIOS()) {
+    if (!iosDialog.open) iosDialog.showModal();
+    return;
+  }
+
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    if (choice?.outcome === "accepted") {
+      deferredInstallPrompt = null;
+      setStatus("Installation lancée. Ouvrez ensuite Infos classe depuis votre écran d’accueil.", "ok");
+    }
+    return;
+  }
+
+  if (isAndroid()) {
+    setStatus("Pour installer l’application, ouvrez cette page dans Chrome puis utilisez le menu ⋮ et choisissez Installer l’application ou Ajouter à l’écran d’accueil.", "warn");
+  } else {
+    setStatus("Utilisez le menu de votre navigateur pour installer ou ajouter cette application à l’écran d’accueil.", "warn");
+  }
 });
 
 function urlBase64ToUint8Array(value) {
