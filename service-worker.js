@@ -1,4 +1,4 @@
-const CACHE_NAME = "infos-classe-v2";
+const CACHE_NAME = "infos-classe-v3";
 const CORE = [
   "./",
   "./index.html",
@@ -47,11 +47,12 @@ self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   const sameOrigin = url.origin === self.location.origin;
   const isConfig = sameOrigin && url.pathname.endsWith("/config.js");
+  const isAppJs = sameOrigin && url.pathname.endsWith("/app.js");
   const isNavigation = event.request.mode === "navigate";
 
-  // Important : config.js et les pages HTML doivent refléter immédiatement
-  // une nouvelle configuration/déploiement et ne doivent pas rester figés en cache.
-  if (isConfig || isNavigation) {
+  // Les fichiers critiques de configuration et de logique doivent toujours
+  // récupérer la version la plus récente après un déploiement.
+  if (isConfig || isAppJs || isNavigation) {
     event.respondWith(networkFirst(event.request));
     return;
   }
