@@ -1,0 +1,6 @@
+// CONFIGURATION PUBLIQUE — aucune clé secrète ici.
+window.INFOS_CLASSE_CONFIG = {
+  SUPABASE_URL: "",
+  SUPABASE_ANON_KEY: "",
+  VAPID_PUBLIC_KEY: ""
+};
