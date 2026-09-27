@@ -29,75 +29,75 @@
           <div class="bell-glow"></div>
           <div class="logo modern-logo"><img src="icons/icon-192.png" alt=""></div>
         </div>
-
         <p class="eyebrow">La classe de Monsieur Dinsart</p>
         <h1>Infos-Classe de Monsieur Dinsart</h1>
-        <p class="hero-copy">
-          Cette application vous permet de recevoir ponctuellement des <strong>rappels et informations utiles</strong> concernant la classe de Monsieur Dinsart.
-        </p>
+        <p id="heroCopy" class="hero-copy">Cette application vous permet de recevoir ponctuellement des <strong>rappels et informations utiles</strong> concernant la classe de Monsieur Dinsart.</p>
       </div>
 
-      <div class="reminder-box" role="note" aria-label="Rappel important">
-        <div class="reminder-icon" aria-hidden="true">!</div>
-        <div>
-          <strong>Un complément à nos communications habituelles</strong>
-          <p>
-            Les notifications sont envoyées <strong>à titre complémentaire, lorsque je l’estime nécessaire</strong>. Elles reprennent généralement des informations déjà communiquées dans <strong>le journal de classe ou la farde de communication</strong>. Elles peuvent également servir à transmettre une information urgente ou imprévue qui me serait parvenue après les heures de classe.
-          </p>
-          <p>
-            Les notifications ne sont donc pas envoyées de manière systématique. Leur absence ne signifie pas qu’il n’y a aucune information à prendre en compte.
-          </p>
-          <p class="reference-message">
-            <strong>Le journal de classe et la farde de communication restent les moyens de communication de référence et doivent être consultés quotidiennement.</strong>
-          </p>
+      <section id="setupPanel" class="setup-panel" aria-live="polite">
+        <div class="setup-step" id="setupStep">Étape 1 sur 2</div>
+        <h2 id="setupTitle">Installer Infos classe</h2>
+        <p id="setupText">Appuyez sur le bouton ci-dessous pour installer l’application sur votre téléphone.</p>
+        <div class="setup-actions">
+          <button id="installBtn" class="btn btn-primary install-main">Installer Infos classe</button>
+          <button id="notifyBtn" class="btn btn-primary notify-main hidden">
+            <span aria-hidden="true">🔔</span>
+            <span>Activer les notifications</span>
+          </button>
         </div>
-      </div>
-
-      <div class="parent-actions">
-        <button id="installBtn" class="btn btn-secondary install-main">Installer l’application sur ce téléphone</button>
-        <button id="notifyBtn" class="btn btn-primary notify-main">
-          <span aria-hidden="true">🔔</span>
-          <span>Activer les notifications</span>
-        </button>
-        <button id="historyBtn" class="btn btn-light history-main">
-          <span aria-hidden="true">📬</span>
-          <span>Mes notifications</span>
-        </button>
-      </div>
-
-      <div id="status" class="status modern-status" role="status" aria-live="polite">Notifications non activées</div>
-
-      <section id="notificationHistory" class="notification-history hidden" aria-labelledby="historyTitle">
-        <div class="history-head">
-          <div>
-            <p class="history-kicker">Historique</p>
-            <h2 id="historyTitle">Mes notifications</h2>
-          </div>
-          <button id="closeHistoryBtn" class="history-close" type="button" aria-label="Fermer l’historique">×</button>
-        </div>
-        <p class="history-note">Les notifications reçues sur ce téléphone restent consultables ici.</p>
-        <div id="historyList" class="history-list" aria-live="polite"></div>
+        <div id="status" class="status modern-status" role="status">Préparation de l’installation…</div>
+        <button id="iosHelpBtn" class="btn-link hidden">Voir comment installer sur iPhone / iPad</button>
       </section>
 
-      <button id="iosHelpBtn" class="btn-link hidden">Comment installer sur iPhone / iPad ?</button>
+      <div id="mainContent" class="main-content hidden">
+        <div class="reminder-box" role="note" aria-label="Rappel important">
+          <div class="reminder-icon" aria-hidden="true">!</div>
+          <div>
+            <strong>Un complément à nos communications habituelles</strong>
+            <p>Les notifications sont envoyées <strong>à titre complémentaire, lorsque je l’estime nécessaire</strong>. Elles reprennent généralement des informations déjà communiquées dans <strong>le journal de classe ou la farde de communication</strong>. Elles peuvent également servir à transmettre une information urgente ou imprévue qui me serait parvenue après les heures de classe.</p>
+            <p>Les notifications ne sont donc pas envoyées de manière systématique. Leur absence ne signifie pas qu’il n’y a aucune information à prendre en compte.</p>
+            <p class="reference-message"><strong>Le journal de classe et la farde de communication restent les moyens de communication de référence et doivent être consultés quotidiennement.</strong></p>
+          </div>
+        </div>
 
-      <div class="privacy-line">
-        <span aria-hidden="true">🔒</span>
-        <span>Canal d’information uniquement · aucune réponse possible</span>
+        <div class="parent-actions">
+          <button id="historyBtn" class="btn btn-light history-main">
+            <span aria-hidden="true">📬</span>
+            <span>Mes notifications</span>
+          </button>
+        </div>
+
+        <section id="notificationHistory" class="notification-history hidden" aria-labelledby="historyTitle">
+          <div class="history-head">
+            <div>
+              <p class="history-kicker">Historique</p>
+              <h2 id="historyTitle">Mes notifications</h2>
+            </div>
+            <button id="closeHistoryBtn" class="history-close" type="button" aria-label="Fermer l’historique">×</button>
+          </div>
+          <p class="history-note">Les notifications reçues sur ce téléphone restent consultables ici.</p>
+          <div id="historyList" class="history-list" aria-live="polite"></div>
+        </section>
+
+        <div class="privacy-line">
+          <span aria-hidden="true">🔒</span>
+          <span>Canal d’information uniquement · aucune réponse possible</span>
+        </div>
       </div>
     </section>
   </main>
 
   <dialog id="iosDialog">
-    <div class="modal">
+    <div class="modal ios-install-modal">
+      <p class="history-kicker">Installation iPhone / iPad</p>
       <h2>Installer Infos classe</h2>
+      <p>Trois gestes seulement :</p>
       <ol>
-        <li>Touchez <strong>Partager</strong>.</li>
+        <li>Touchez <strong>Partager</strong> dans votre navigateur.</li>
         <li>Choisissez <strong>Sur l’écran d’accueil</strong>.</li>
         <li>Touchez <strong>Ajouter</strong>.</li>
-        <li>Ouvrez ensuite <strong>Infos classe</strong>.</li>
-        <li>Appuyez sur <strong>Activer les notifications</strong>.</li>
       </ol>
+      <p><strong>Ensuite, ouvrez Infos classe depuis l’écran d’accueil.</strong> L’application vous demandera d’activer les notifications.</p>
       <button id="closeIosDialog" class="btn btn-primary" style="width:100%">J’ai compris</button>
     </div>
   </dialog>
