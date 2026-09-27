@@ -1,4 +1,4 @@
-const CACHE_NAME = "infos-classe-v4";
+const CACHE_NAME = "infos-classe-v5";
 const CORE = [
   "./",
   "./index.html",
@@ -46,7 +46,6 @@ async function networkFirst(request) {
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
-
   const url = new URL(event.request.url);
   const sameOrigin = url.origin === self.location.origin;
   const isConfig = sameOrigin && url.pathname.endsWith("/config.js");
@@ -101,15 +100,12 @@ async function saveNotification(record) {
 
 self.addEventListener("push", event => {
   let data = {};
-  try {
-    data = event.data ? event.data.json() : {};
-  } catch (_) {}
+  try { data = event.data ? event.data.json() : {}; } catch (_) {}
 
   const title = data.title || "La classe de Monsieur Dinsart";
   const body = data.body || "Nouvelle information.";
   const tag = data.tag || `infos-classe-${Date.now()}`;
   const receivedAt = Date.now();
-
   const options = {
     body,
     icon: new URL("icons/icon-192.png", self.registration.scope).href,
@@ -118,13 +114,7 @@ self.addEventListener("push", event => {
     renotify: true,
     data: { url: `${self.registration.scope}#notifications` }
   };
-
-  const record = {
-    id: tag,
-    title,
-    body,
-    receivedAt
-  };
+  const record = { id: tag, title, body, receivedAt };
 
   event.waitUntil(Promise.all([
     saveNotification(record).catch(error => console.error("Historique notification", error)),
