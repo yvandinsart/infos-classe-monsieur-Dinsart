@@ -1,1 +1,96 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";import { createClient } from "npm:@supabase/supabase-js@2.57.4";import webpush from "npm:web-push@3.6.7";const H={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS"};const J=(d:unknown,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{...H,"Content-Type":"application/json"}});Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{headers:H});if(req.method!=="POST")return J({error:"METHOD_NOT_ALLOWED"},405);const u=Deno.env.get("SUPABASE_URL")!,a=Deno.env.get("SUPABASE_ANON_KEY")!,sr=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,adminEmail=(Deno.env.get("ADMIN_EMAIL")||"").toLowerCase().trim(),vp=Deno.env.get("VAPID_PUBLIC_KEY")!,vk=Deno.env.get("VAPID_PRIVATE_KEY")!;if(!adminEmail||!vp||!vk)return J({error:"SERVER_NOT_CONFIGURED"},500);const h=req.headers.get("Authorization")||"",t=h.replace(/^Bearer\s+/i,"");if(!t)return J({error:"UNAUTHORIZED"},401);const ac=createClient(u,a,{global:{headers:{Authorization:`Bearer ${t}`}}}),{data:ud,error:ue}=await ac.auth.getUser(t),email=ud?.user?.email?.toLowerCase()||"";if(ue||!email||email!==adminEmail)return J({error:"FORBIDDEN"},403);const db=createClient(u,sr),body=await req.json().catch(()=>({})),action=body.action||"stats",{data:subs,error:le}=await db.from("push_subscriptions").select("endpoint_id, endpoint, p256dh, auth").eq("active",true);if(le)return J({error:"DATABASE_ERROR"},500);if(action==="stats")return J({activeSubscriptions:subs?.length||0});if(action!=="send")return J({error:"UNKNOWN_ACTION"},400);const title=String(body.title||"").trim().slice(0,70),message=String(body.body||"").trim().slice(0,350);if(!title||!message)return J({error:"MISSING_MESSAGE"},400);webpush.setVapidDetails(`mailto:${adminEmail}`,vp,vk);let accepted=0,failed=0;const stale:string[]=[],payload=JSON.stringify({title,body:message,tag:`infos-classe-${Date.now()}`});await Promise.all((subs||[]).map(async s=>{try{await webpush.sendNotification({endpoint:s.endpoint,keys:{p256dh:s.p256dh,auth:s.auth}},payload,{TTL:86400});accepted++}catch(e:any){failed++;const sc=Number(e?.statusCode||0);if(sc===404||sc===410)stale.push(s.endpoint_id);console.error("Push failed",sc,e?.message)}}));if(stale.length)await db.from("push_subscriptions").update({active:false,updated_at:new Date().toISOString()}).in("endpoint_id",stale);return J({accepted,failed,activeSubscriptions:subs?.length||0})});
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import webpush from "npm:web-push@3.6.7";
+
+const H = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS"
+};
+
+const J = (d: unknown, s = 200) =>
+  new Response(JSON.stringify(d), {
+    status: s,
+    headers: { ...H, "Content-Type": "application/json" }
+  });
+
+Deno.serve(async req => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: H });
+  if (req.method !== "POST") return J({ error: "METHOD_NOT_ALLOWED" }, 405);
+
+  const u = Deno.env.get("SUPABASE_URL")!;
+  const a = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const sr = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const adminEmail = (Deno.env.get("ADMIN_EMAIL") || "").toLowerCase().trim();
+  const vp = Deno.env.get("VAPID_PUBLIC_KEY")!;
+  const vk = Deno.env.get("VAPID_PRIVATE_KEY")!;
+
+  if (!adminEmail || !vp || !vk) return J({ error: "SERVER_NOT_CONFIGURED" }, 500);
+
+  const h = req.headers.get("Authorization") || "";
+  const t = h.replace(/^Bearer\s+/i, "");
+  if (!t) return J({ error: "UNAUTHORIZED" }, 401);
+
+  const ac = createClient(u, a, { global: { headers: { Authorization: `Bearer ${t}` } } });
+  const { data: ud, error: ue } = await ac.auth.getUser(t);
+  const email = ud?.user?.email?.toLowerCase() || "";
+  if (ue || !email || email !== adminEmail) return J({ error: "FORBIDDEN" }, 403);
+
+  const db = createClient(u, sr);
+  const body = await req.json().catch(() => ({}));
+  const action = body.action || "stats";
+
+  const { data: subs, error: le } = await db
+    .from("push_subscriptions")
+    .select("endpoint_id, endpoint, p256dh, auth")
+    .eq("active", true);
+
+  if (le) return J({ error: "DATABASE_ERROR" }, 500);
+  if (action === "stats") return J({ activeSubscriptions: subs?.length || 0 });
+  if (action !== "send") return J({ error: "UNKNOWN_ACTION" }, 400);
+
+  const title = String(body.title || "").trim().slice(0, 70);
+  const message = String(body.body || "").trim().slice(0, 350);
+  if (!title || !message) return J({ error: "MISSING_MESSAGE" }, 400);
+
+  webpush.setVapidDetails(`mailto:${adminEmail}`, vp, vk);
+
+  let accepted = 0;
+  let failed = 0;
+  const stale: string[] = [];
+  const payload = JSON.stringify({
+    title,
+    body: message,
+    tag: `infos-classe-${Date.now()}`
+  });
+
+  await Promise.all((subs || []).map(async s => {
+    try {
+      await webpush.sendNotification(
+        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        payload,
+        { TTL: 86400 }
+      );
+      accepted++;
+    } catch (e: any) {
+      failed++;
+      const sc = Number(e?.statusCode || 0);
+      if (sc === 403 || sc === 404 || sc === 410) stale.push(s.endpoint_id);
+      console.error("Push failed", sc, e?.message);
+    }
+  }));
+
+  if (stale.length) {
+    await db
+      .from("push_subscriptions")
+      .update({ active: false, updated_at: new Date().toISOString() })
+      .in("endpoint_id", stale);
+  }
+
+  return J({
+    accepted,
+    failed,
+    deactivated: stale.length,
+    activeSubscriptions: Math.max(0, (subs?.length || 0) - stale.length)
+  });
+});
