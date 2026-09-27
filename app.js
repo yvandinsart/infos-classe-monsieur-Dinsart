@@ -197,6 +197,17 @@ async function saveNotificationToHistory(item) {
   db.close();
 }
 
+async function deleteNotificationFromHistory(id) {
+  const db = await openHistoryDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(HISTORY_STORE, "readwrite");
+    tx.objectStore(HISTORY_STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
 async function sendWelcomeNotificationOnce(registration) {
   if (localStorage.getItem(WELCOME_SENT_KEY) === "1") return;
   const title = "Bienvenue sur Infos classe de Monsieur Dinsart";
@@ -314,7 +325,10 @@ async function renderHistory() {
     }
     historyList.innerHTML = items.map(item => `
       <article class="history-item">
-        <h3 class="history-item-title">${escapeHtml(item.title || "Information")}</h3>
+        <div class="history-item-top">
+          <h3 class="history-item-title">${escapeHtml(item.title || "Information")}</h3>
+          <button class="history-delete" type="button" data-notification-id="${escapeHtml(item.id)}" aria-label="Supprimer cette notification">Supprimer</button>
+        </div>
         <p class="history-item-body">${escapeHtml(item.body || "")}</p>
         <p class="history-item-date">${escapeHtml(formatNotificationDate(item.receivedAt))}</p>
       </article>
@@ -343,6 +357,25 @@ historyBtn.addEventListener("click", () => {
   if (notificationHistory.classList.contains("hidden")) openHistory(); else closeHistory();
 });
 closeHistoryBtn.addEventListener("click", closeHistory);
+
+historyList.addEventListener("click", async event => {
+  const button = event.target.closest(".history-delete");
+  if (!button) return;
+  const id = button.dataset.notificationId;
+  if (!id) return;
+  const confirmed = window.confirm("Supprimer cette notification de l’historique ?");
+  if (!confirmed) return;
+  button.disabled = true;
+  try {
+    await deleteNotificationFromHistory(id);
+    await renderHistory();
+  } catch (error) {
+    console.error(error);
+    button.disabled = false;
+    window.alert("Impossible de supprimer cette notification.");
+  }
+});
+
 window.addEventListener("hashchange", () => { if (location.hash === "#notifications") openHistory(); });
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && !notificationHistory.classList.contains("hidden")) renderHistory();
