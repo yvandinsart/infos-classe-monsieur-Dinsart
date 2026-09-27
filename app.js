@@ -11,6 +11,11 @@ const historyBtn = document.getElementById("historyBtn");
 const notificationHistory = document.getElementById("notificationHistory");
 const historyList = document.getElementById("historyList");
 const closeHistoryBtn = document.getElementById("closeHistoryBtn");
+const setupPanel = document.getElementById("setupPanel");
+const setupStep = document.getElementById("setupStep");
+const setupTitle = document.getElementById("setupTitle");
+const setupText = document.getElementById("setupText");
+const mainContent = document.getElementById("mainContent");
 
 const HISTORY_DB = "infos-classe-history";
 const HISTORY_STORE = "notifications";
@@ -29,12 +34,53 @@ function setStatus(text, cssClass = "") {
   statusBox.className = `status modern-status ${cssClass}`.trim();
 }
 
+function showSetupStage(stage) {
+  if (stage === "install") {
+    setupPanel.classList.remove("hidden");
+    mainContent.classList.add("hidden");
+    setupStep.textContent = "Étape 1 sur 2";
+    setupTitle.textContent = "Installer Infos classe";
+    setupText.textContent = "Appuyez simplement sur le bouton ci-dessous pour installer l’application sur votre téléphone.";
+    installBtn.classList.remove("hidden");
+    notifyBtn.classList.add("hidden");
+    if (isIOS()) {
+      installBtn.textContent = "Installer Infos classe sur iPhone / iPad";
+      iosHelpBtn.classList.remove("hidden");
+    } else if (isAndroid()) {
+      installBtn.textContent = "Installer Infos classe";
+      iosHelpBtn.classList.add("hidden");
+    } else {
+      installBtn.textContent = "Installer Infos classe";
+      iosHelpBtn.classList.add("hidden");
+    }
+    return;
+  }
+
+  if (stage === "notifications") {
+    setupPanel.classList.remove("hidden");
+    mainContent.classList.add("hidden");
+    setupStep.textContent = "Étape 2 sur 2";
+    setupTitle.textContent = "Activer les notifications";
+    setupText.textContent = "Dernière étape : appuyez sur le bouton puis autorisez les notifications lorsque votre téléphone le demande.";
+    installBtn.classList.add("hidden");
+    notifyBtn.classList.remove("hidden");
+    iosHelpBtn.classList.add("hidden");
+    return;
+  }
+
+  setupPanel.classList.add("hidden");
+  mainContent.classList.remove("hidden");
+  installBtn.classList.add("hidden");
+  notifyBtn.classList.add("hidden");
+  iosHelpBtn.classList.add("hidden");
+}
+
 function describeError(error) {
   const code = String(error?.code || "");
   const message = String(error?.message || error || "Erreur inconnue");
   if (code === "42501" || message.toLowerCase().includes("row-level security")) return "Supabase refuse l’enregistrement (RLS).";
   if (message.includes("applicationServerKey") || message.includes("InvalidCharacterError")) return "Clé VAPID publique invalide.";
-  if (message.includes("permission") || message.includes("Permission")) return "Autorisation de notification refusée par Android/Chrome.";
+  if (message.includes("permission") || message.includes("Permission")) return "Autorisation de notification refusée par le téléphone ou le navigateur.";
   if (message.includes("push service") || message.includes("PushManager") || message.includes("InvalidStateError")) return `Abonnement push impossible : ${message}`;
   return `Activation impossible : ${message}`;
 }
@@ -44,55 +90,58 @@ window.addEventListener("online", updateOffline);
 window.addEventListener("offline", updateOffline);
 updateOffline();
 
-function updateInstallUi() {
-  if (isStandalone()) {
-    installBtn.classList.add("hidden");
-    iosHelpBtn.classList.add("hidden");
-    return;
-  }
-  installBtn.classList.remove("hidden");
-  if (isIOS()) {
-    installBtn.textContent = "Installer l’application sur iPhone / iPad";
-    iosHelpBtn.classList.remove("hidden");
-  } else if (isAndroid()) {
-    installBtn.textContent = "Installer l’application sur Android";
-    iosHelpBtn.classList.add("hidden");
-  } else {
-    installBtn.textContent = "Installer l’application sur cet appareil";
-    iosHelpBtn.classList.add("hidden");
-  }
-}
-updateInstallUi();
-
 iosHelpBtn.addEventListener("click", () => { if (!iosDialog.open) iosDialog.showModal(); });
 document.getElementById("closeIosDialog").addEventListener("click", () => iosDialog.close());
 
 window.addEventListener("beforeinstallprompt", event => {
   event.preventDefault();
   deferredInstallPrompt = event;
-  updateInstallUi();
+  if (!isStandalone()) {
+    showSetupStage("install");
+    setStatus("Prêt à installer", "ok");
+  }
 });
+
 window.addEventListener("appinstalled", () => {
   deferredInstallPrompt = null;
-  updateInstallUi();
+  installBtn.classList.add("hidden");
+  setupStep.textContent = "Installation terminée";
+  setupTitle.textContent = "Infos classe est installée";
+  setupText.textContent = "Ouvrez maintenant Infos classe depuis l’icône ajoutée sur votre écran d’accueil.";
+  setStatus("Installation réussie", "ok");
 });
 
 installBtn.addEventListener("click", async () => {
-  if (isStandalone()) { installBtn.classList.add("hidden"); return; }
-  if (isIOS()) { if (!iosDialog.open) iosDialog.showModal(); return; }
+  if (isStandalone()) {
+    showSetupStage("notifications");
+    return;
+  }
+
+  if (isIOS()) {
+    if (!iosDialog.open) iosDialog.showModal();
+    return;
+  }
+
   if (deferredInstallPrompt) {
     deferredInstallPrompt.prompt();
     const choice = await deferredInstallPrompt.userChoice;
     if (choice?.outcome === "accepted") {
       deferredInstallPrompt = null;
-      setStatus("Installation lancée. Ouvrez ensuite Infos classe depuis votre écran d’accueil.", "ok");
+      installBtn.classList.add("hidden");
+      setupStep.textContent = "Installation en cours";
+      setupTitle.textContent = "Presque terminé";
+      setupText.textContent = "Une fois l’installation terminée, ouvrez Infos classe depuis l’icône sur votre écran d’accueil.";
+      setStatus("Installation lancée", "ok");
+    } else {
+      setStatus("Installation non terminée. Appuyez à nouveau sur Installer Infos classe.", "warn");
     }
     return;
   }
+
   if (isAndroid()) {
-    setStatus("Pour installer l’application, utilisez l’option Installer l’application ou Ajouter à l’écran d’accueil proposée par votre navigateur.", "warn");
+    setStatus("Si la fenêtre d’installation ne s’ouvre pas, utilisez le menu du navigateur puis choisissez Installer l’application ou Ajouter à l’écran d’accueil.", "warn");
   } else {
-    setStatus("Utilisez le menu de votre navigateur pour installer ou ajouter cette application à l’écran d’accueil.", "warn");
+    setStatus("Utilisez le menu de votre navigateur puis choisissez l’option permettant d’installer ou d’ajouter l’application à l’écran d’accueil.", "warn");
   }
 });
 
@@ -225,37 +274,50 @@ async function sendWelcomeNotificationOnce(registration) {
 }
 
 async function refreshState() {
-  if (!("Notification" in window) || !("PushManager" in window)) {
-    setStatus("Notifications non prises en charge sur cet appareil", "warn");
-    notifyBtn.disabled = true;
-    return;
-  }
-  if (!configured()) {
-    setStatus("Application à configurer avant l’activation des notifications", "warn");
-    notifyBtn.disabled = true;
-    return;
-  }
-  if (Notification.permission === "denied") {
-    setStatus("Notifications bloquées dans les réglages du navigateur", "error");
-    notifyBtn.disabled = true;
-    return;
-  }
   try {
     const registration = await registerServiceWorker();
+
+    if (!isStandalone()) {
+      showSetupStage("install");
+      setStatus(deferredInstallPrompt ? "Prêt à installer" : "Appuyez sur Installer Infos classe", deferredInstallPrompt ? "ok" : "");
+      return;
+    }
+
+    if (!("Notification" in window) || !("PushManager" in window)) {
+      showSetupStage("notifications");
+      setStatus("Notifications non prises en charge sur cet appareil", "warn");
+      notifyBtn.disabled = true;
+      return;
+    }
+    if (!configured()) {
+      showSetupStage("notifications");
+      setStatus("Application à configurer avant l’activation des notifications", "warn");
+      notifyBtn.disabled = true;
+      return;
+    }
+    if (Notification.permission === "denied") {
+      showSetupStage("notifications");
+      setStatus("Notifications bloquées dans les réglages du téléphone ou du navigateur", "error");
+      notifyBtn.disabled = true;
+      return;
+    }
+
     let subscription = await registration.pushManager.getSubscription();
     if (subscription && Notification.permission === "granted") {
       subscription = await ensureCurrentSubscription(registration);
       setStatus("Synchronisation de l’abonnement…");
       await syncSubscriptionToSupabase(subscription);
       setStatus("Notifications activées", "ok");
-      notifyBtn.textContent = "Notifications activées";
       notifyBtn.disabled = true;
+      showSetupStage("ready");
     } else {
-      setStatus("Notifications non activées");
+      showSetupStage("notifications");
+      setStatus("Dernière étape : activez les notifications");
       notifyBtn.disabled = false;
     }
   } catch (error) {
     console.error(error);
+    if (isStandalone()) showSetupStage("notifications"); else showSetupStage("install");
     setStatus(describeError(error), "error");
     notifyBtn.disabled = false;
   }
@@ -273,7 +335,8 @@ async function activateNotifications() {
   }
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
-    setStatus(permission === "denied" ? "Notifications refusées dans le navigateur" : "Notifications non activées", permission === "denied" ? "error" : "");
+    setStatus(permission === "denied" ? "Notifications refusées. Vous pouvez les autoriser dans les réglages du téléphone." : "Notifications non activées", permission === "denied" ? "error" : "");
+    notifyBtn.disabled = false;
     return;
   }
   const registration = await registerServiceWorker();
@@ -281,8 +344,8 @@ async function activateNotifications() {
   await syncSubscriptionToSupabase(subscription);
   await sendWelcomeNotificationOnce(registration);
   setStatus("Notifications activées", "ok");
-  notifyBtn.textContent = "Notifications activées";
   notifyBtn.disabled = true;
+  showSetupStage("ready");
 }
 
 notifyBtn.addEventListener("click", () => {
@@ -378,7 +441,10 @@ historyList.addEventListener("click", async event => {
 
 window.addEventListener("hashchange", () => { if (location.hash === "#notifications") openHistory(); });
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && !notificationHistory.classList.contains("hidden")) renderHistory();
+  if (!document.hidden) {
+    refreshState();
+    if (!notificationHistory.classList.contains("hidden")) renderHistory();
+  }
 });
 if (location.hash === "#notifications") setTimeout(openHistory, 250);
 
